@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cocktail-Bar · Geschmacksrad</title>
+  <meta name="description" content="Entdecke Cocktails mit individuellem Geschmacksrad – berechnet aus den echten Zutaten." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://www.thecocktaildb.com" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="logo">🍸 Cocktail<span>Lab</span></h1>
+      <p class="tagline">Cocktails entdecken – mit individuellem Geschmacksrad</p>
+    </div>
+  </header>
+
+  <!-- ====================== Reiter / Navigation ====================== -->
+  <nav class="tabs container" aria-label="Ansicht wählen">
+    <button type="button" class="tab is-active" data-view="discover" aria-selected="true">
+      Entdecken
+    </button>
+    <button type="button" class="tab" data-view="all" aria-selected="false">
+      Alle Cocktails A–Z
+    </button>
+  </nav>
+
+  <main id="main" class="container">
+
+    <!-- ================================================================= -->
+    <!-- Ansicht: Entdecken (Suche, Filter, beliebte Cocktails)            -->
+    <!-- ================================================================= -->
+    <div id="view-discover" class="view">
+      <section class="search-panel" aria-label="Suche und Filter">
+        <div class="search-row">
+          <label class="search-field">
+            <span class="visually-hidden">Cocktail suchen</span>
+            <input
+              type="search"
+              id="search-input"
+              placeholder="Cocktail suchen, z. B. Margarita…"
+              autocomplete="off"
+              aria-label="Cocktail nach Namen suchen"
+            />
+          </label>
+          <button type="button" id="random-btn" class="btn btn-accent">
+            🎲 Zufalls-Cocktail
+          </button>
+        </div>
+
+        <div class="filter-row">
+          <label class="filter-field">
+            <span>Kategorie</span>
+            <select id="filter-category" aria-label="Nach Kategorie filtern">
+              <option value="">– alle –</option>
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Glas</span>
+            <select id="filter-glass" aria-label="Nach Glas filtern">
+              <option value="">– alle –</option>
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>Alkohol</span>
+            <select id="filter-alcohol" aria-label="Nach Alkoholgehalt filtern">
+              <option value="">– egal –</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <p id="result-status" class="result-status" aria-live="polite"></p>
+
+      <div id="loading" class="loading hidden" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Lade Cocktails…</span>
+      </div>
+
+      <div id="error" class="error-box hidden" role="alert"></div>
+
+      <div id="empty" class="empty-state hidden">
+        <p>Keine Cocktails gefunden. Versuch einen anderen Suchbegriff oder einen Filter.</p>
+      </div>
+
+      <section id="results" class="card-grid" aria-label="Suchergebnisse"></section>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- Ansicht: Alle Cocktails A–Z                                       -->
+    <!-- ================================================================= -->
+    <div id="view-all" class="view hidden">
+      <nav class="alphabet" id="alphabet" aria-label="Nach Anfangsbuchstabe blättern"></nav>
+
+      <p id="all-status" class="result-status" aria-live="polite"></p>
+
+      <div id="all-loading" class="loading hidden" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Lade Cocktails…</span>
+      </div>
+
+      <div id="all-error" class="error-box hidden" role="alert"></div>
+
+      <div id="all-empty" class="empty-state hidden">
+        <p>Für diesen Buchstaben gibt es keine Cocktails.</p>
+      </div>
+
+      <section id="all-results" class="card-grid" aria-label="Alle Cocktails"></section>
+    </div>
+
+  </main>
+
+  <!-- ====================== Detail-Modal ====================== -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-overlay" data-close></div>
+    <div class="modal-content" role="document">
+      <button type="button" class="modal-close" aria-label="Schließen" data-close>×</button>
+      <div id="modal-body" class="modal-body">
+        <!-- Inhalt wird per JS gefüllt -->
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>
+        Daten von
+        <a href="https://www.thecocktaildb.com" target="_blank" rel="noopener">TheCocktailDB</a>.
+        Geschmacksrad lokal &amp; deterministisch aus den Zutaten berechnet.
+      </p>
+    </div>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

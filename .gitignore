@@ -1,0 +1,8 @@
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+*.log
+
+# Lokale Test-Hilfsdateien
+_test_*.mjs
