@@ -14,6 +14,7 @@ const els = {
   tabs:          document.querySelectorAll(".tab"),
   viewDiscover:  document.getElementById("view-discover"),
   viewAll:       document.getElementById("view-all"),
+  viewFlavor:    document.getElementById("view-flavor"),
   // Entdecken-Ansicht
   search:        document.getElementById("search-input"),
   randomBtn:     document.getElementById("random-btn"),
@@ -22,6 +23,11 @@ const els = {
   filterAlc:     document.getElementById("filter-alcohol"),
   // Alle-Cocktails-Ansicht
   alphabet:      document.getElementById("alphabet"),
+  // Geschmack-finden-Ansicht
+  flavorChips:   document.getElementById("flavor-chips"),
+  flavorCount:   document.getElementById("flavor-count"),
+  flavorFindBtn: document.getElementById("flavor-find-btn"),
+  flavorResetBtn:document.getElementById("flavor-reset-btn"),
   // Modal
   modal:         document.getElementById("modal"),
   modalBody:     document.getElementById("modal-body"),
@@ -42,6 +48,13 @@ const allCtx = {
   error:   document.getElementById("all-error"),
   empty:   document.getElementById("all-empty"),
   results: document.getElementById("all-results"),
+};
+const flavorCtx = {
+  status:  document.getElementById("flavor-status"),
+  loading: document.getElementById("flavor-loading"),
+  error:   document.getElementById("flavor-error"),
+  empty:   document.getElementById("flavor-empty"),
+  results: document.getElementById("flavor-results"),
 };
 
 // =============================================================================
@@ -298,6 +311,183 @@ async function loadLetter(letter) {
 }
 
 // =============================================================================
+// Ansicht „Geschmack finden": 3 Geschmacksachsen → passende Vorschläge
+// =============================================================================
+
+// Passendes Emoji je Achse (Reihenfolge identisch zu AXES aus flavor.js).
+const AXIS_EMOJI = ["🍬", "🍋", "🌿", "🥃", "🍓", "🍃", "🌶️", "🥛"];
+
+const MAX_FLAVORS = 3;          // genau so viele Achsen müssen gewählt werden
+const FLAVOR_RESULT_COUNT = 12; // Anzahl der angezeigten Vorschläge
+
+let flavorChipsBuilt = false;
+const selectedAxes = [];        // Indizes der gewählten Achsen (max. MAX_FLAVORS)
+
+// Baut die 8 Geschmacks-Chips aus AXES einmalig auf.
+function buildFlavorChips() {
+  const frag = document.createDocumentFragment();
+  AXES.forEach((axis, i) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "flavor-chip";
+    chip.dataset.axis = String(i);
+    chip.setAttribute("aria-pressed", "false");
+
+    const emoji = document.createElement("span");
+    emoji.className = "chip-emoji";
+    emoji.setAttribute("aria-hidden", "true");
+    emoji.textContent = AXIS_EMOJI[i] || "•";
+
+    const label = document.createElement("span");
+    label.className = "chip-label";
+    label.textContent = axis;
+
+    chip.append(emoji, label);
+    chip.addEventListener("click", () => toggleAxis(i));
+    frag.appendChild(chip);
+  });
+  els.flavorChips.appendChild(frag);
+  flavorChipsBuilt = true;
+  updateFlavorUI();
+
+  els.flavorFindBtn.addEventListener("click", findFlavorMatches);
+  els.flavorResetBtn.addEventListener("click", resetFlavorSelection);
+}
+
+// Achse an-/abwählen; bei erreichtem Maximum werden weitere Auswahlen blockiert.
+function toggleAxis(index) {
+  const pos = selectedAxes.indexOf(index);
+  if (pos !== -1) {
+    selectedAxes.splice(pos, 1);
+  } else {
+    if (selectedAxes.length >= MAX_FLAVORS) return; // schon 3 gewählt
+    selectedAxes.push(index);
+  }
+  updateFlavorUI();
+}
+
+// Setzt die Auswahl zurück und leert die Ergebnisse.
+function resetFlavorSelection() {
+  selectedAxes.length = 0;
+  updateFlavorUI();
+  clearResults(flavorCtx);
+  setStatus(flavorCtx, "");
+}
+
+// Spiegelt den Auswahlzustand in die Chips, den Zähler und den Button.
+function updateFlavorUI() {
+  const full = selectedAxes.length >= MAX_FLAVORS;
+  els.flavorChips.querySelectorAll(".flavor-chip").forEach(chip => {
+    const idx = Number(chip.dataset.axis);
+    const active = selectedAxes.includes(idx);
+    chip.classList.toggle("is-active", active);
+    chip.setAttribute("aria-pressed", active ? "true" : "false");
+    // Nicht gewählte Chips deaktivieren, sobald das Maximum erreicht ist.
+    chip.disabled = !active && full;
+  });
+
+  els.flavorCount.textContent = `${selectedAxes.length} von ${MAX_FLAVORS} gewählt`;
+  els.flavorFindBtn.disabled = selectedAxes.length !== MAX_FLAVORS;
+}
+
+// ---------------------------------------------------------------------------
+// Cocktail-Pool: search.php?f=<Buchstabe> liefert VOLLSTÄNDIGE Objekte inkl.
+// Zutaten. Mit wenigen Buchstaben bekommen wir hunderte Cocktails, aus denen
+// wir lokal Geschmacksprofile berechnen. Der Pool wird einmalig aufgebaut.
+// ---------------------------------------------------------------------------
+
+// Buchstaben für den Pool – breite Mischung gängiger Cocktail-Anfangsbuchstaben.
+const POOL_LETTERS = "abcdfgimprstvw".split("");
+let flavorPool = null;          // Array von { drink, values } nach dem Laden
+let poolPromise = null;         // verhindert paralleles Mehrfachladen
+
+// Lädt (einmalig) den Pool: Buchstaben in kleinen Parallel-Batches abrufen,
+// vollständige Drinks sammeln, Profile berechnen und Drinks cachen.
+async function ensureFlavorPool() {
+  if (flavorPool) return flavorPool;
+  if (poolPromise) return poolPromise;
+
+  poolPromise = (async () => {
+    const byId = new Map();
+    const batchSize = 4;
+    for (let i = 0; i < POOL_LETTERS.length; i += batchSize) {
+      const batch = POOL_LETTERS.slice(i, i + batchSize);
+      const results = await Promise.all(batch.map(async letter => {
+        try {
+          const data = await apiGet(`search.php?f=${encodeURIComponent(letter)}`);
+          return data.drinks ?? [];
+        } catch {
+          return []; // einzelne Buchstaben dürfen fehlschlagen
+        }
+      }));
+      for (const drinks of results) {
+        for (const drink of drinks) {
+          if (drink?.idDrink) byId.set(String(drink.idDrink), drink);
+        }
+      }
+    }
+
+    if (byId.size === 0) throw new Error("Cocktail-Pool ist leer.");
+
+    flavorPool = [];
+    for (const drink of byId.values()) {
+      drinkCache.set(String(drink.idDrink), drink); // Detail später ohne Nachladen
+      const ingredients = extractIngredients(drink);
+      const { values } = computeFlavorProfile(ingredients);
+      flavorPool.push({ drink, values });
+    }
+    return flavorPool;
+  })();
+
+  return poolPromise;
+}
+
+// Bewertet ein Profil gegen die gewählten Achsen.
+// Belohnt sowohl die durchschnittliche Stärke der gewählten Achsen als auch
+// deren Ausgewogenheit (alle drei sollten spürbar vorhanden sein).
+function scoreProfile(values, axes) {
+  const picked = axes.map(a => values[a]);
+  const avg = picked.reduce((s, v) => s + v, 0) / picked.length;
+  const balance = Math.min(...picked); // niedrigste gewählte Achse
+  return 0.6 * avg + 0.4 * balance;
+}
+
+// Hauptablauf: Pool sicherstellen, bewerten, Top-Treffer rendern.
+async function findFlavorMatches() {
+  if (selectedAxes.length !== MAX_FLAVORS) return;
+
+  const names = selectedAxes.map(a => AXES[a]).join(", ");
+  clearResults(flavorCtx);
+  showLoading(flavorCtx, true);
+  setStatus(flavorCtx, `Suche Cocktails mit ${names}…`);
+
+  try {
+    const pool = await ensureFlavorPool();
+    const ranked = pool
+      .map(entry => ({ ...entry, score: scoreProfile(entry.values, selectedAxes) }))
+      // Nur Cocktails, bei denen jede gewählte Achse spürbar vorhanden ist.
+      .filter(entry => selectedAxes.every(a => entry.values[a] >= 15))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, FLAVOR_RESULT_COUNT);
+
+    showLoading(flavorCtx, false);
+
+    if (ranked.length === 0) {
+      renderResults(flavorCtx, []); // zeigt Leerzustand
+      setStatus(flavorCtx, `Keine guten Treffer für ${names}. Versuch eine andere Kombination.`);
+      return;
+    }
+
+    renderResults(flavorCtx, ranked.map(r => r.drink), { foundLabel: "passend" });
+    setStatus(flavorCtx, `Top-Treffer für ${names} – sortiert nach Übereinstimmung.`);
+  } catch (e) {
+    showLoading(flavorCtx, false);
+    showError(flavorCtx, `Vorschläge fehlgeschlagen: ${e.message}`);
+    setStatus(flavorCtx, "");
+  }
+}
+
+// =============================================================================
 // Reiter-Umschaltung
 // =============================================================================
 
@@ -309,17 +499,27 @@ function switchView(view) {
   });
   els.viewDiscover.classList.toggle("hidden", view !== "discover");
   els.viewAll.classList.toggle("hidden", view !== "all");
+  els.viewFlavor.classList.toggle("hidden", view !== "flavor");
 
   // Beim ersten Öffnen der A–Z-Ansicht direkt Buchstabe „A" laden.
   if (view === "all" && currentLetter === null) loadLetter("a");
+  // Geschmacks-Ansicht: Chips einmalig aufbauen.
+  if (view === "flavor" && !flavorChipsBuilt) buildFlavorChips();
 }
 
 // =============================================================================
 // Detailansicht (Modal)
 // =============================================================================
 
-// Per ID: vollständige Details nachladen (für filter.php-Treffer nötig).
+// Cache vollständiger Drink-Objekte (idDrink → drink), gefüllt von jedem
+// vollständigen Objekt, das wir sehen (Suche, Zufall, Geschmacks-Pool).
+// Spart einen lookup.php-Aufruf, wenn die Details schon vorliegen.
+const drinkCache = new Map();
+
+// Per ID: vollständige Details öffnen – aus dem Cache, sonst nachladen.
 async function openDetail(idDrink) {
+  const cached = drinkCache.get(String(idDrink));
+  if (cached) { openDetailFromObject(cached); return; }
   try {
     const data = await apiGet(`lookup.php?i=${encodeURIComponent(idDrink)}`);
     const drink = data.drinks?.[0];
@@ -327,13 +527,21 @@ async function openDetail(idDrink) {
     openDetailFromObject(drink);
   } catch (e) {
     // Fehler in der aktuell sichtbaren Ansicht melden.
-    const ctx = els.viewAll.classList.contains("hidden") ? discoverCtx : allCtx;
+    const ctx = currentCtx();
     showError(ctx, `Details konnten nicht geladen werden: ${e.message}`);
   }
 }
 
+// Liefert den Kontext der aktuell sichtbaren Ansicht (für Fehlermeldungen).
+function currentCtx() {
+  if (!els.viewFlavor.classList.contains("hidden")) return flavorCtx;
+  if (!els.viewAll.classList.contains("hidden")) return allCtx;
+  return discoverCtx;
+}
+
 // Detailansicht aus einem bereits vollständigen Drink-Objekt aufbauen.
 function openDetailFromObject(drink) {
+  if (drink?.idDrink) drinkCache.set(String(drink.idDrink), drink);
   const ingredients = extractIngredients(drink);
   const profile = computeFlavorProfile(ingredients);
 

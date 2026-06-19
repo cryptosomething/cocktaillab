@@ -26,6 +26,9 @@
     <button type="button" class="tab" data-view="all" aria-selected="false">
       Alle Cocktails A–Z
     </button>
+    <button type="button" class="tab" data-view="flavor" aria-selected="false">
+      Geschmack finden
+    </button>
   </nav>
 
   <main id="main" class="container">
@@ -109,6 +112,45 @@
       </div>
 
       <section id="all-results" class="card-grid" aria-label="Alle Cocktails"></section>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- Ansicht: Geschmack finden (3 Geschmacksachsen → Vorschläge)        -->
+    <!-- ================================================================= -->
+    <div id="view-flavor" class="view hidden">
+      <section class="flavor-finder" aria-label="Geschmack wählen">
+        <h2 class="ff-heading">Wähle deinen Geschmack</h2>
+        <p class="ff-intro">
+          Tippe auf <strong>genau 3</strong> Geschmacksrichtungen aus dem Geschmacksrad.
+          Wir berechnen die Profile aller Cocktails aus ihren Zutaten und schlagen
+          dir die besten Treffer vor.
+        </p>
+
+        <div id="flavor-chips" class="flavor-chips" role="group" aria-label="Geschmacksrichtungen"></div>
+
+        <div class="ff-actions">
+          <span id="flavor-count" class="ff-count" aria-live="polite">0 von 3 gewählt</span>
+          <button type="button" id="flavor-find-btn" class="btn btn-accent" disabled>
+            🔎 Vorschläge finden
+          </button>
+          <button type="button" id="flavor-reset-btn" class="btn">Zurücksetzen</button>
+        </div>
+      </section>
+
+      <p id="flavor-status" class="result-status" aria-live="polite"></p>
+
+      <div id="flavor-loading" class="loading hidden" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Berechne passende Cocktails…</span>
+      </div>
+
+      <div id="flavor-error" class="error-box hidden" role="alert"></div>
+
+      <div id="flavor-empty" class="empty-state hidden">
+        <p>Keine passenden Cocktails gefunden. Versuch eine andere Kombination.</p>
+      </div>
+
+      <section id="flavor-results" class="card-grid" aria-label="Passende Cocktails"></section>
     </div>
 
   </main>

@@ -175,6 +175,55 @@ body {
   .filter-row { grid-template-columns: repeat(3, 1fr); }
 }
 
+/* ============================ Geschmack finden ============================ */
+.flavor-finder {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
+}
+.ff-heading { margin: 0 0 .4rem; font-size: 1.3rem; }
+.ff-intro { margin: 0 0 1.2rem; color: var(--text-dim); font-size: .95rem; max-width: 60ch; }
+.ff-intro strong { color: var(--accent-2); }
+
+.flavor-chips {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .7rem;
+}
+@media (min-width: 560px) { .flavor-chips { grid-template-columns: repeat(4, 1fr); } }
+
+.flavor-chip {
+  display: flex; flex-direction: column; align-items: center; gap: .35rem;
+  cursor: pointer;
+  padding: .9rem .6rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: inherit;
+  transition: transform var(--transition), border-color var(--transition),
+              background var(--transition), box-shadow var(--transition);
+}
+.flavor-chip:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--accent); }
+.flavor-chip .chip-emoji { font-size: 1.6rem; line-height: 1; }
+.flavor-chip .chip-label { font-weight: 600; font-size: .9rem; }
+.flavor-chip.is-active {
+  background: linear-gradient(135deg, rgba(224,160,74,0.22), rgba(240,192,116,0.12));
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(224,160,74,0.25) inset;
+}
+.flavor-chip.is-active .chip-label { color: var(--accent-2); }
+.flavor-chip:disabled { opacity: .4; cursor: not-allowed; }
+
+.ff-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .8rem;
+  margin-top: 1.3rem;
+}
+.ff-count { color: var(--text-dim); font-size: .9rem; margin-right: auto; }
+
 /* ============================ Status/Zustände ============================ */
 .result-status { color: var(--text-dim); font-size: .9rem; min-height: 1.2em; margin: .2rem 0 1rem; }
 
