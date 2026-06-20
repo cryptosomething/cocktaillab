@@ -3,9 +3,9 @@
 // UI-Steuerung, API-Aufrufe und Modal-Logik für die Cocktail-Seite.
 // =============================================================================
 
-import { AXES, computeFlavorProfile } from "./flavor.js";
-import { renderRadar } from "./radar.js";
-import { formatMeasure } from "./units.js";
+import { AXES, computeFlavorProfile } from "./flavor.js?v=2";
+import { renderRadar } from "./radar.js?v=2";
+import { formatMeasure } from "./units.js?v=2";
 
 const API = "https://www.thecocktaildb.com/api/json/v1/1/";
 
