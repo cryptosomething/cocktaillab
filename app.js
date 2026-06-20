@@ -5,8 +5,24 @@
 
 import { AXES, computeFlavorProfile } from "./flavor.js";
 import { renderRadar } from "./radar.js";
+import { formatMeasure } from "./units.js";
 
 const API = "https://www.thecocktaildb.com/api/json/v1/1/";
+
+// Gewähltes Maßsystem: metrisch (Hauptanzeige) oder imperial (optional).
+// Auswahl wird – wenn möglich – über localStorage gemerkt.
+let unitSystem = readStoredUnitSystem();
+
+function readStoredUnitSystem() {
+  try {
+    return localStorage.getItem("unitSystem") === "imperial" ? "imperial" : "metric";
+  } catch {
+    return "metric";
+  }
+}
+function storeUnitSystem(sys) {
+  try { localStorage.setItem("unitSystem", sys); } catch { /* z. B. file:// ohne Storage */ }
+}
 
 // --- DOM-Referenzen ---
 const els = {
@@ -550,6 +566,42 @@ function openDetailFromObject(drink) {
   openModal();
 }
 
+// Segmentierter Umschalter Metrisch (ml) / Imperial (oz) für die Zutaten.
+function buildUnitToggle() {
+  const wrap = document.createElement("div");
+  wrap.className = "unit-toggle";
+  wrap.setAttribute("role", "group");
+  wrap.setAttribute("aria-label", "Maßeinheiten");
+  for (const [sys, label] of [["metric", "ml"], ["imperial", "oz"]]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.system = sys;
+    b.textContent = label;
+    const active = sys === unitSystem;
+    b.className = "unit-btn" + (active ? " is-active" : "");
+    b.setAttribute("aria-pressed", active ? "true" : "false");
+    b.addEventListener("click", () => setUnitSystem(sys));
+    wrap.appendChild(b);
+  }
+  return wrap;
+}
+
+// Wechselt das Maßsystem, merkt es und aktualisiert die offene Detailansicht.
+function setUnitSystem(sys) {
+  if (sys === unitSystem) return;
+  unitSystem = sys;
+  storeUnitSystem(sys);
+
+  els.modalBody.querySelectorAll(".unit-toggle .unit-btn").forEach(b => {
+    const active = b.dataset.system === sys;
+    b.classList.toggle("is-active", active);
+    b.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  els.modalBody.querySelectorAll(".ingredient-measure").forEach(span => {
+    span.textContent = formatMeasure(span.dataset.raw || "", sys);
+  });
+}
+
 // Baut den DOM-Baum der Detailansicht (kein innerHTML mit Fremddaten).
 function buildDetailDOM(drink, ingredients, profile) {
   const root = document.createElement("div");
@@ -612,7 +664,13 @@ function buildDetailDOM(drink, ingredients, profile) {
   // --- Zutaten ---
   const ingSection = document.createElement("section");
   ingSection.className = "detail-section";
-  ingSection.innerHTML = "<h3>Zutaten</h3>";
+  // Kopf mit Überschrift + Maßeinheiten-Umschalter (metrisch ist Standard).
+  const ingHead = document.createElement("div");
+  ingHead.className = "section-head";
+  const ingTitle = document.createElement("h3");
+  ingTitle.textContent = "Zutaten";
+  ingHead.append(ingTitle, buildUnitToggle());
+  ingSection.appendChild(ingHead);
   const ul = document.createElement("ul");
   ul.className = "ingredient-list";
   for (const ing of ingredients) {
@@ -634,7 +692,8 @@ function buildDetailDOM(drink, ingredients, profile) {
     if (ing.measure) {
       const ms = document.createElement("span");
       ms.className = "ingredient-measure";
-      ms.textContent = ing.measure;
+      ms.dataset.raw = ing.measure;                       // Original für Umschaltung
+      ms.textContent = formatMeasure(ing.measure, unitSystem);
       textWrap.appendChild(ms);
     }
     li.append(iimg, textWrap);
